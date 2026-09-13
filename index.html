@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestione Cassa & Ordinazioni — Ristorante</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body {
+            background-color: #121214;
+            color: #e1e1e6;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .pos-container {
+            width: 100%;
+            max-width: 950px;
+            height: 100vh;
+            max-height: 680px;
+            background: #18181c;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: #202024;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-size: 14px;
+        }
+        .pos-title { font-weight: 600; color: #00b37e; letter-spacing: 0.5px; }
+        .cassa-total-box { font-size: 13px; color: #a8a8b3; }
+        .cassa-total-box span { color: #00b37e; font-weight: bold; font-size: 15px; }
+
+        /* Main Grid */
+        .main-workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Colonna Sinistra: Menù e Categorie */
+        .menu-section {
+            flex: 1.3;
+            background: #121214;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow: hidden;
+        }
+        .categories {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+        }
+        .cat-btn {
+            background: #202024;
+            border: none;
+            color: #a8a8b3;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .cat-btn.active { background: #00b37e; color: #fff; }
+
+        .items-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            overflow-y: auto;
+            align-content: start;
+        }
+        .item-card {
+            background: #202024;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: border-color 0.1s;
+        }
+        .item-card:hover { border-color: #00b37e; }
+        .item-name { font-size: 13px; font-weight: 600; color: #f1f1f3; margin-bottom: 4px; }
+        .item-price { font-size: 12px; color: #00b37e; font-weight: bold; }
+
+        /* Colonna Destra: Blocco Ordinazione & Cassa */
+        .order-section {
+            flex: 1;
+            background: #18181c;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+        .section-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #a8a8b3;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .table-select {
+            background: #202024;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .order-list {
+            flex: 1;
+            background: #121214;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .order-row-info { display: flex; flex-direction: column; }
+        .order-row-name { color: #e1e1e6; font-weight: 500; }
+        .order-row-price { color: #a8a8b3; font-size: 11px; }
+        .order-row-actions { display: flex; align-items: center; gap: 8px; }
+        .qty-btn { background: #29292e; color: #fff; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        .order-summary {
+            background: #202024;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+        .summary-line.total {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00b37e;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 6px;
+            margin-top: 6px;
+        }
+
+        .pay-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .btn {
+            background: #00b37e;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            text-align: center;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn.secondary { background: #29292e; color: #c4c4cc; }
+
+        /* Modale Pagamento / Cassa */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .modal {
+            background: #202024;
+            width: 350px;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal h3 { font-size: 16px; margin-bottom: 15px; color: #fff; }
+        .modal input {
+            width: 100%;
+            background: #121214;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .modal-buttons { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="pos-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="pos-title">🍕 Ristorante Pizzeria "Bella Vista" — Postazione Cassa 01</div>
+            <div class="cassa-total-box">Incasso Giornaliero in Cassa: <span id="daily-incasso">€ 0,00</span></div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div class="main-workspace">
+            <!-- Menù & Categorie -->
+            <div class="menu-section">
+                <div class="categories">
+                    <button class="cat-btn active" onclick="filterMenu('pizze')">🍕 Pizze</button>
+                    <button class="cat-btn" onclick="filterMenu('bibite')">🥤 Bibite & Vino</button>
+                    <button class="cat-btn" onclick="filterMenu('dolci')">🍰 Dolci</button>
+                    <button class="cat-btn" onclick="filterMenu('caffetteria')">☕ Caffetteria</button>
+                </div>
+                <div class="items-grid" id="menu-items">
+                    <!-- Dinamico -->
+                </div>
+            </div>
+
+            <!-- Blocco Ordinazione & Cassa -->
+            <div class="order-section">
+                <div class="section-header">
+                    <span>Blocco Ordinazione</span>
+                    <select class="table-select" id="selected-table">
+                        <option value="Tavolo 1">Tavolo 1</option>
+                        <option value="Tavolo 2">Tavolo 2</option>
+                        <option value="Tavolo 3">Tavolo 3</option>
+                        <option value="Tavolo 4">Tavolo 4</option>
+                        <option value="Asporto">Asporto / Banco</option>
+                    </select>
+                </div>
+
+                <div class="order-list" id="order-list">
+                    <div style="color: #7c7c8a; font-size: 12px; text-align: center; margin-top: 40px;">Nessun articolo ordinato.<br>Seleziona i piatti dal menù a sinistra.</div>
+                </div>
+
+                <div class="order-summary">
+                    <div class="summary-line"><span>Totale Articoli:</span> <span id="summary-count">0</span></div>
+                    <div class="summary-line total"><span>Totale da Pagare:</span> <span id="summary-total">€ 0,00</span></div>
+                </div>
+
+                <div class="pay-actions">
+                    <button class="btn secondary" onclick="clearOrder()">Annulla</button>
+                    <button class="btn" onclick="openCheckout()">Esegui Pagamento 💶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Pagamento in Contanti / POS -->
+    <div class="modal-overlay" id="checkout-modal">
+        <div class="modal">
+            <h3 id="modal-title">Cassa — Totale: € 0,00</h3>
+            <p style="font-size: 12px; color: #a8a8b3; margin-bottom: 8px;">Inserisci importo ricevuto dal cliente:</p>
+            <input type="number" id="cash-given" placeholder="Es. 50.00" step="0.05">
+            <div id="change-display" style="font-size: 14px; margin-bottom: 15px; color: #00b37e; font-weight: bold;"></div>
+            <div class="modal-buttons">
+                <button class="btn secondary" onclick="closeCheckout()">Annulla</button>
+                <button class="btn" onclick="confirmPayment('Contanti')">Incassa Contanti</button>
+                <button class="btn" onclick="confirmPayment('POS')">Paga con POS</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Database Menù Completo
+        const menuData = {
+            pizze: [
+                { id: 1, name: "Margherita", price: 7.00 },
+                { id: 2, name: "Marinara", price: 5.50 },
+                { id: 3, name: "Diavola", price: 8.50 },
+                { id: 4, name: "Capricciosa", price: 9.00 },
+                { id: 5, name: "Quattro Formaggi", price: 9.50 },
+                { id: 6, name: "Bufalina", price: 10.00 },
+                { id: 7, name: "Ortolana (Verdure)", price: 9.00 },
+                { id: 8, name: "Wurstel e Patatine", price: 8.50 }
+            ],
+            bibite: [
+                { id: 9, name: "Acqua Naturale 0.75l", price: 2.50 },
+                { id: 10, name: "Acqua Frizzante 0.75l", price: 2.50 },
+                { id: 11, name: "Coca Cola 33cl", price: 3.50 },
+                { id: 12, name: "Fanta / Sprite 33cl", price: 3.50 },
+                { id: 13, name: "Birra Artigianale 0.4l", price: 5.00 },
+                { id: 14, name: "Vino della Casa (Calice)", price: 4.00 },
+                { id: 15, name: "Vino della Casa (Bottiglia)", price: 14.00 }
+            ],
+            dolci: [
+                { id: 16, name: "Tiramisù della Casa", price: 5.00 },
+                { id: 17, name: "Panna Cotta (Frutti di Bosco)", price: 4.50 },
+                { id: 18, name: "Cheesecake Nutella", price: 5.50 },
+                { id: 19, name: "Sorbetto al Limone", price: 3.50 }
+            ],
+            caffetteria: [
+                { id: 20, name: "Caffè Espresso", price: 1.20 },
+                { id: 21, name: "Caffè Decaffeinato", price: 1.40 },
+                { id: 22, name: "Caffè Macchiato", price: 1.30 },
+                { id: 23, name: "Cappuccino", price: 2.00 },
+                { id: 24, name: "Amaro / Limoncello", price: 3.50 }
+            ]
+        };
+
+        let currentCategory = 'pizze';
+        let currentOrder = [];
+        let totalIncasso = 0;
+
+        // Inizializzazione
+        window.addEventListener('load', () => {
+            renderMenu(currentCategory);
+        });
+
+        function filterMenu(category) {
+            currentCategory = category;
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            renderMenu(category);
+        }
+
+        function renderMenu(category) {
+            const container = document.getElementById('menu-items');
+            const items = menuData[category];
+            container.innerHTML = items.map(item => `
+                <div class="item-card" onclick="addToOrder(${item.id}, '${item.name}', ${item.price})">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">€ ${item.price.toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+
+        function addToOrder(id, name, price) {
+            const existing = currentOrder.find(item => item.id === id);
+            if (existing) {
+                existing.qty++;
+            } else {
+                currentOrder.push({ id, name, price, qty: 1 });
+            }
+            updateOrderUI();
+        }
+
+        function changeQty(id, delta) {
+            const item = currentOrder.find(i => i.id === id);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    currentOrder = currentOrder.filter(i => i.id !== id);
+                }
+            }
+            updateOrderUI();
+        }
+
+        function clearOrder() {
+            currentOrder = [];
+            updateOrderUI();
+        }
+
+        function calculateTotal() {
+            return currentOrder.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        }
+
+        function updateOrderUI() {
+            const listContainer = document.getElementById('order-list');
+            const totalCountEl = document.getElementById('summary-count');
+            const totalSumEl = document.getElementById('summary-total');
+
+            if (currentOrder.length === 0) {
+                listContainer.innerHTML = `<div style="color: #7c7c8a; font-size: 12px; text-align: center; margin-top: 40px;">Nessun articolo ordinato.<br>Seleziona i piatti dal menù a sinistra.</div>`;
+                totalCountEl.innerText = '0';
+                totalSumEl.innerText = '€ 0,00';
+                return;
+            }
+
+            let totalCount = 0;
+            listContainer.innerHTML = currentOrder.map(item => {
+                totalCount += item.qty;
+                return `
+                    <div class="order-row">
+                        <div class="order-row-info">
+                            <span class="order-row-name">${item.name}</span>
+                            <span class="order-row-price">€ ${item.price.toFixed(2)} x ${item.qty}</span>
+                        </div>
+                        <div class="order-row-actions">
+                            <button class="qty-btn" onclick="changeQty(${item.id}, -1)">-</button>
+                            <span style="font-size: 12px; width: 15px; text-align: center;">${item.qty}</span>
+                            <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            totalCountEl.innerText = totalCount;
+            totalSumEl.innerText = `€ ${calculateTotal().toFixed(2)}`;
+        }
+
+        // Funzioni Cassa e Pagamento
+        function openCheckout() {
+            if (currentOrder.length === 0) {
+                alert("Il blocco ordinazione è vuoto!");
+                return;
+            }
+            const total = calculateTotal();
+            document.getElementById('modal-title').innerText = `Cassa — Totale: € ${total.toFixed(2)}`;
+            document.getElementById('cash-given').value = '';
+            document.getElementById('change-display').innerText = '';
+            document.getElementById('checkout-modal').style.display = 'flex';
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkout-modal').style.display = 'none';
+        }
+
+        document.getElementById('cash-given').addEventListener('input', (e) => {
+            const given = parseFloat(e.target.value) || 0;
+            const total = calculateTotal();
+            const change = given - total;
+            const changeEl = document.getElementById('change-display');
+            if (change >= 0) {
+                changeEl.innerText = `Resto da dare al cliente: € ${change.toFixed(2)}`;
+                changeEl.style.color = '#00b37e';
+            } else {
+                changeEl.innerText = `Mancano: € ${Math.abs(change).toFixed(2)}`;
+                changeEl.style.color = '#f75a68';
+            }
+        });
+
+        function confirmPayment(method) {
+            const total = calculateTotal();
+            totalIncasso += total;
+            document.getElementById('daily-incasso').innerText = `€ ${totalIncasso.toFixed(2)}`;
+            
+            const tableName = document.getElementById('selected-table').value;
+            alert(`Pagamento di € ${total.toFixed(2)} (${method}) registrato con successo per il ${tableName}! Scontrino emesso.`);
+            
+            closeCheckout();
+            clearOrder();
+        }
+    </script>
+</body>
+</html>
